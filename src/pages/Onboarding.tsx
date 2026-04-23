@@ -64,6 +64,8 @@ export default function Onboarding() {
       lastCompleted: null,
       completedToday: false,
       history: [],
+      archived: false,
+      archivedAt: null,
     }));
 
     // Create UserState in the format expected by Home component

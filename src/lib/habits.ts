@@ -52,6 +52,8 @@ export interface Habit {
   lastCompleted: string | null; // ISO date YYYY-MM-DD
   completedToday: boolean;
   history: string[]; // ISO dates of completions
+  archived: boolean;
+  archivedAt: string | null;
 }
 
 export interface UserState {
@@ -61,6 +63,12 @@ export interface UserState {
 }
 
 const STORAGE_KEY = "streak.app.v1";
+
+export interface HabitUpdate {
+  name: string;
+  category: CategoryId;
+  hint?: string;
+}
 
 export function todayISO(): string {
   const d = new Date();
@@ -84,12 +92,8 @@ export function loadState(): UserState | null {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as UserState;
-    // Reconcile completedToday against lastCompleted
     const today = todayISO();
-    parsed.habits = parsed.habits.map((h) => ({
-      ...h,
-      completedToday: h.lastCompleted === today,
-    }));
+    parsed.habits = parsed.habits.map((h) => normalizeHabit(h, today));
     return parsed;
   } catch {
     return null;
@@ -111,6 +115,7 @@ export function completeHabit(state: UserState, habitId: string): UserState {
     ...state,
     habits: state.habits.map((h) => {
       if (h.id !== habitId) return h;
+      if (h.archived) return h;
       if (h.lastCompleted === today) return h;
       const continued = h.lastCompleted === yest;
       const newStreak = continued ? h.streak + 1 : 1;
@@ -142,6 +147,79 @@ export function uncompleteHabit(state: UserState, habitId: string): UserState {
         history,
       };
     }),
+  };
+}
+
+export function updateHabit(state: UserState, habitId: string, updates: HabitUpdate): UserState {
+  const trimmedName = updates.name.trim();
+  const trimmedHint = updates.hint?.trim();
+
+  if (!trimmedName) return state;
+
+  return {
+    ...state,
+    habits: state.habits.map((h) =>
+      h.id === habitId
+        ? {
+            ...h,
+            name: trimmedName,
+            category: updates.category,
+            hint: trimmedHint || h.hint,
+          }
+        : h,
+    ),
+  };
+}
+
+export function archiveHabit(state: UserState, habitId: string): UserState {
+  const archivedAt = todayISO();
+  return {
+    ...state,
+    habits: state.habits.map((h) =>
+      h.id === habitId
+        ? {
+            ...h,
+            archived: true,
+            archivedAt,
+          }
+        : h,
+    ),
+  };
+}
+
+export function restoreHabit(state: UserState, habitId: string): UserState {
+  const today = todayISO();
+  return {
+    ...state,
+    habits: state.habits.map((h) =>
+      h.id === habitId
+        ? {
+            ...h,
+            archived: false,
+            archivedAt: null,
+            completedToday: h.lastCompleted === today,
+          }
+        : h,
+    ),
+  };
+}
+
+export function getActiveHabits(habits: Habit[]) {
+  return habits.filter((habit) => !habit.archived);
+}
+
+export function getArchivedHabits(habits: Habit[]) {
+  return habits.filter((habit) => habit.archived);
+}
+
+function normalizeHabit(habit: Habit, today = todayISO()): Habit {
+  return {
+    ...habit,
+    hint: habit.hint || "Track your progress",
+    completedToday: habit.lastCompleted === today,
+    history: Array.isArray(habit.history) ? habit.history : [],
+    archived: habit.archived ?? false,
+    archivedAt: habit.archivedAt ?? null,
   };
 }
 

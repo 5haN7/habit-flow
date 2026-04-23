@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Habit, CATEGORY_CLASSES } from "@/lib/habits";
+import { Habit, CATEGORY_CLASSES, CATEGORIES } from "@/lib/habits";
 import { ArrowRight, Check, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +14,7 @@ const THRESHOLD = 0.75; // Must drag 75% to complete
 
 export default function HabitCard({ habit, onComplete }: HabitCardProps) {
   const c = CATEGORY_CLASSES[habit.category];
+  const category = CATEGORIES.find((item) => item.id === habit.category);
   const trackRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -196,12 +197,38 @@ export default function HabitCard({ habit, onComplete }: HabitCardProps) {
         )}
 
         {/* Center label */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-20">
+        <div
+          className={cn(
+            "absolute inset-0 pointer-events-none",
+            completed ? "flex items-center justify-between gap-3 pl-4 pr-[72px]" : "flex items-center justify-center px-20",
+          )}
+        >
           {completed ? (
-            <div className="flex items-center gap-2 text-[14px] font-bold tracking-tight text-current">
-              <Check className="h-4 w-4" strokeWidth={3} />
-              <span>Done · {habit.streak} day{habit.streak === 1 ? "" : "s"}</span>
-            </div>
+            <>
+              <div className="min-w-0 flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20">
+                  <Check className="h-4 w-4" strokeWidth={3} />
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate text-[15px] font-bold tracking-tight text-current">
+                    {habit.name}
+                  </div>
+                  <div className="truncate text-[11px] font-medium text-current/80">
+                    {category?.label} · Completed today
+                  </div>
+                </div>
+              </div>
+
+              <div className="shrink-0 rounded-full border border-white/20 bg-white/15 px-3 py-2 text-current shadow-sm">
+                <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-current/70">
+                  Streak
+                </div>
+                <div className="mt-0.5 flex items-center gap-1 text-[13px] font-bold tabular-nums">
+                  <Flame className="h-3.5 w-3.5" />
+                  <span>{habit.streak}d</span>
+                </div>
+              </div>
+            </>
           ) : (
             <div className="min-w-0 text-center">
               <div

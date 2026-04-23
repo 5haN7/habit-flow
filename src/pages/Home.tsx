@@ -1,14 +1,16 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useApp } from "@/store/useAppStore";
 import { Navigate } from "react-router-dom";
 import MobileShell from "@/components/MobileShell";
 import HabitCard from "@/components/HabitCard";
 import CategoryHeader from "@/components/CategoryHeader";
-import { CATEGORIES } from "@/lib/habits";
-import { Settings2 } from "lucide-react";
+import HabitStudioDialog from "@/components/HabitStudioDialog";
+import { CATEGORIES, getActiveHabits } from "@/lib/habits";
+import { PencilLine } from "lucide-react";
 
 export default function Home() {
-  const { user, toggleHabit, resetUser } = useApp();
+  const { user, toggleHabit, updateHabit, archiveHabit, restoreHabit, resetUser } = useApp();
+  const [isStudioOpen, setStudioOpen] = useState(false);
 
   const today = useMemo(
     () =>
@@ -20,18 +22,20 @@ export default function Home() {
     []
   );
 
+  const activeHabits = useMemo(() => getActiveHabits(user?.habits ?? []), [user]);
+
   const grouped = useMemo(() => {
-    if (!user) return [];
+    if (!activeHabits.length) return [];
     return CATEGORIES.map((cat) => ({
       ...cat,
-      items: user.habits.filter((h) => h.category === cat.id),
+      items: activeHabits.filter((h) => h.category === cat.id),
     })).filter((g) => g.items.length > 0);
-  }, [user]);
+  }, [activeHabits]);
 
   if (!user?.onboarded) return <Navigate to="/welcome" replace />;
 
-  const totalDone = user.habits.filter((h) => h.completedToday).length;
-  const total = user.habits.length;
+  const totalDone = activeHabits.filter((h) => h.completedToday).length;
+  const total = activeHabits.length;
   const pct = total === 0 ? 0 : Math.round((totalDone / total) * 100);
 
   return (
@@ -46,18 +50,22 @@ export default function Home() {
               Hello, {user.name}.
               <br />
               <span className="italic font-medium text-muted-foreground">
-                {totalDone === total && total > 0 ? "All done today." : "Build the day."}
+                {total === 0
+                  ? "Shape the routine."
+                  : totalDone === total
+                    ? "All done today."
+                    : "Build the day."}
               </span>
             </h1>
           </div>
           <button
-            onClick={() => {
-              if (confirm("Reset your setup? This clears all habits and streaks.")) resetUser();
-            }}
-            aria-label="Reset"
-            className="text-muted-foreground hover:text-foreground p-2"
+            type="button"
+            onClick={() => setStudioOpen(true)}
+            aria-label="Edit your routine"
+            className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[12px] font-bold text-slate-700 shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-md"
           >
-            <Settings2 className="h-5 w-5" />
+            <PencilLine className="h-4 w-4" />
+            <span>Edit routine</span>
           </button>
         </div>
 
@@ -68,7 +76,7 @@ export default function Home() {
               Today
             </span>
             <span className="text-[12px] font-bold tabular-nums text-foreground bg-slate-100 px-3 py-1 rounded-full">
-              {totalDone}/{total} · {pct}%
+              {total === 0 ? "No active habits" : `${totalDone}/${total} · ${pct}%`}
             </span>
           </div>
           <div className="relative">
@@ -89,6 +97,29 @@ export default function Home() {
       </header>
 
       <div className="px-6 space-y-10">
+        {grouped.length === 0 && (
+          <section className="rounded-[32px] border border-dashed border-slate-300 bg-gradient-to-br from-slate-50 to-white px-6 py-8 text-center shadow-sm">
+            <div className="mx-auto max-w-[250px]">
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                No active habits
+              </p>
+              <h2 className="mt-3 text-[24px] font-bold tracking-tight text-slate-900">
+                Your streak history is safe.
+              </h2>
+              <p className="mt-2 text-[14px] leading-6 text-slate-600">
+                Restore an archived habit or edit your routine to put something back on today&apos;s board.
+              </p>
+              <button
+                type="button"
+                onClick={() => setStudioOpen(true)}
+                className="mt-5 inline-flex items-center rounded-full bg-slate-900 px-5 py-3 text-[13px] font-bold text-white transition-all duration-300 hover:scale-[1.02] hover:shadow-md"
+              >
+                Open routine studio
+              </button>
+            </div>
+          </section>
+        )}
+
         {grouped.map((g) => (
           <section key={g.id}>
             <CategoryHeader
@@ -105,6 +136,17 @@ export default function Home() {
           </section>
         ))}
       </div>
+
+      <HabitStudioDialog
+        open={isStudioOpen}
+        onOpenChange={setStudioOpen}
+        userName={user.name}
+        habits={user.habits}
+        onUpdateHabit={updateHabit}
+        onArchiveHabit={archiveHabit}
+        onRestoreHabit={restoreHabit}
+        onResetUser={resetUser}
+      />
 
       </MobileShell>
   );

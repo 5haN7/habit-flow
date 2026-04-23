@@ -1,5 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from "react";
-import { Habit, UserState, completeHabit, loadState, saveState, todayISO, uncompleteHabit, clearState } from "@/lib/habits";
+import {
+  HabitUpdate,
+  UserState,
+  archiveHabit as archiveHabitInState,
+  clearState,
+  completeHabit,
+  loadState,
+  restoreHabit as restoreHabitInState,
+  saveState,
+  todayISO,
+  uncompleteHabit,
+  updateHabit as updateHabitInState,
+} from "@/lib/habits";
 
 export interface TodoItem {
   id: string;
@@ -13,6 +25,9 @@ interface AppContextShape {
   setUser: (u: UserState) => void;
   resetUser: () => void;
   toggleHabit: (id: string) => void;
+  updateHabit: (id: string, updates: HabitUpdate) => void;
+  archiveHabit: (id: string) => void;
+  restoreHabit: (id: string) => void;
   todos: TodoItem[];
   addTodo: (text: string) => void;
   toggleTodo: (id: string) => void;
@@ -60,6 +75,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const updateHabit = useCallback((id: string, updates: HabitUpdate) => {
+    setUserState((prev) => (prev ? updateHabitInState(prev, id, updates) : prev));
+  }, []);
+
+  const archiveHabit = useCallback((id: string) => {
+    setUserState((prev) => (prev ? archiveHabitInState(prev, id) : prev));
+  }, []);
+
+  const restoreHabit = useCallback((id: string) => {
+    setUserState((prev) => (prev ? restoreHabitInState(prev, id) : prev));
+  }, []);
+
   const addTodo = useCallback((text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -78,8 +105,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, setUser, resetUser, toggleHabit, todos, addTodo, toggleTodo, removeTodo }),
-    [user, setUser, resetUser, toggleHabit, todos, addTodo, toggleTodo, removeTodo]
+    () => ({
+      user,
+      setUser,
+      resetUser,
+      toggleHabit,
+      updateHabit,
+      archiveHabit,
+      restoreHabit,
+      todos,
+      addTodo,
+      toggleTodo,
+      removeTodo,
+    }),
+    [
+      user,
+      setUser,
+      resetUser,
+      toggleHabit,
+      updateHabit,
+      archiveHabit,
+      restoreHabit,
+      todos,
+      addTodo,
+      toggleTodo,
+      removeTodo,
+    ]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

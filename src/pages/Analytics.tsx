@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Navigate } from "react-router-dom";
 import MobileShell from "@/components/MobileShell";
 import { useApp } from "@/store/useAppStore";
-import { CATEGORIES, CATEGORY_CLASSES, todayISO } from "@/lib/habits";
+import { CATEGORIES, CATEGORY_CLASSES, getActiveHabits, todayISO } from "@/lib/habits";
 import {
   ResponsiveContainer,
   BarChart,
@@ -19,7 +19,8 @@ import { cn } from "@/lib/utils";
 
 export default function Analytics() {
   const { user } = useApp();
-  const habits = user?.habits ?? [];
+  const habits = useMemo(() => user?.habits ?? [], [user]);
+  const activeHabits = useMemo(() => getActiveHabits(habits), [habits]);
 
   const last7 = useMemo(() => {
     const days: { date: string; label: string; count: number }[] = [];
@@ -52,10 +53,10 @@ export default function Analytics() {
 
   const totalCompletions = habits.reduce((s, h) => s + (h.history?.length ?? 0), 0);
   const bestStreak = habits.reduce((m, h) => Math.max(m, h.bestStreak), 0);
-  const currentStreaksSum = habits.reduce((s, h) => s + h.streak, 0);
+  const currentStreaksSum = activeHabits.reduce((s, h) => s + h.streak, 0);
   const today = todayISO();
-  const doneToday = habits.filter((h) => h.lastCompleted === today).length;
-  const completionRate = habits.length === 0 ? 0 : Math.round((doneToday / habits.length) * 100);
+  const doneToday = activeHabits.filter((h) => h.lastCompleted === today).length;
+  const completionRate = activeHabits.length === 0 ? 0 : Math.round((doneToday / activeHabits.length) * 100);
 
   const pieData = byCategory.length > 0 && byCategory.some((c) => c.value > 0)
     ? byCategory
@@ -175,12 +176,20 @@ export default function Analytics() {
                 key={h.id}
                 className={cn(
                   "bg-gradient-to-r from-slate-50 to-slate-100 border-2 rounded-2xl px-5 py-4 flex items-center justify-between transition-all duration-300 hover:scale-[1.02] hover:shadow-lg",
-                  c.border
+                  c.border,
+                  h.archived && "opacity-70"
                 )}
                 style={{ borderColor: c.chart }}
               >
                 <div className="min-w-0">
-                  <div className="text-[15px] font-bold text-foreground truncate">{h.name}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-[15px] font-bold text-foreground truncate">{h.name}</div>
+                    {h.archived && (
+                      <span className="rounded-full bg-slate-200 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">
+                        Archived
+                      </span>
+                    )}
+                  </div>
                   <div className="text-[12px] font-medium text-muted-foreground truncate">{h.hint}</div>
                 </div>
                 <div className="flex items-center gap-4 shrink-0 ml-3">
