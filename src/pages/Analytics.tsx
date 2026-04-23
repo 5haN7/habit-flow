@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { Navigate } from "react-router-dom";
 import MobileShell from "@/components/MobileShell";
-import BottomNav from "@/components/BottomNav";
 import { useApp } from "@/store/useAppStore";
 import { CATEGORIES, CATEGORY_CLASSES, todayISO } from "@/lib/habits";
 import {
@@ -77,28 +76,29 @@ export default function Analytics() {
         </h1>
       </header>
 
-      <div className="px-6 grid grid-cols-2 gap-3">
-        <Stat icon={<CheckCircle2 className="h-4 w-4" />} label="Completions" value={totalCompletions} />
-        <Stat icon={<Flame className="h-4 w-4" />} label="Active streaks" value={currentStreaksSum} />
-        <Stat icon={<Trophy className="h-4 w-4" />} label="Best streak" value={bestStreak} />
-        <Stat icon={<Activity className="h-4 w-4" />} label="Today" value={`${completionRate}%`} />
+      <div className="px-6 grid grid-cols-2 gap-4">
+        <Stat icon={<CheckCircle2 className="h-5 w-5" />} label="Completions" value={totalCompletions} color="hsl(var(--cat-mind))" />
+        <Stat icon={<Flame className="h-5 w-5" />} label="Active streaks" value={currentStreaksSum} color="hsl(var(--cat-energy))" />
+        <Stat icon={<Trophy className="h-5 w-5" />} label="Best streak" value={bestStreak} color="hsl(var(--cat-finances))" />
+        <Stat icon={<Activity className="h-5 w-5" />} label="Today" value={`${completionRate}%`} color="hsl(var(--cat-home))" />
       </div>
 
       <section className="px-6 mt-10">
         <SectionTitle title="Last 7 days" hint="Habits completed each day" />
-        <div className="bg-surface border border-border rounded-md p-4 h-44">
+        <div className="relative bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-slate-200 rounded-3xl p-6 h-48 shadow-lg overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-pink-500/5"></div>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={last7} margin={{ top: 8, right: 4, left: -20, bottom: 0 }}>
               <XAxis
                 dataKey="label"
                 tickLine={false}
                 axisLine={false}
-                tick={{ fontSize: 11, fontWeight: 500, fill: "hsl(var(--muted-foreground))" }}
+                tick={{ fontSize: 11, fontWeight: 600, fill: "hsl(var(--muted-foreground))" }}
               />
               <YAxis
                 allowDecimals={false}
                 domain={[0, maxBar]}
-                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                tick={{ fontSize: 11, fontWeight: 600, fill: "hsl(var(--muted-foreground))" }}
                 axisLine={false}
                 tickLine={false}
                 width={28}
@@ -107,15 +107,16 @@ export default function Analytics() {
                 cursor={{ fill: "hsl(var(--muted))" }}
                 contentStyle={{
                   background: "hsl(var(--surface))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: 6,
+                  border: "2px solid hsl(var(--border))",
+                  borderRadius: 12,
                   fontSize: 12,
                   fontFamily: "DM Sans",
+                  fontWeight: 600,
                 }}
               />
-              <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+              <Bar dataKey="count" radius={[12, 12, 0, 0]}>
                 {last7.map((d, i) => (
-                  <Cell key={i} fill="hsl(var(--foreground))" />
+                  <Cell key={i} fill={`hsl(${(i * 30) % 360}, 70%, 60%)`} />
                 ))}
               </Bar>
             </BarChart>
@@ -125,17 +126,18 @@ export default function Analytics() {
 
       <section className="px-6 mt-10">
         <SectionTitle title="By category" hint="Where your effort goes" />
-        <div className="bg-surface border border-border rounded-md p-4 flex items-center gap-4">
-          <div className="h-32 w-32 shrink-0">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-slate-200 rounded-3xl p-6 flex items-center gap-6 shadow-lg">
+          <div className="h-36 w-36 shrink-0 relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 rounded-full"></div>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={pieData}
                   dataKey="value"
-                  innerRadius={36}
-                  outerRadius={56}
+                  innerRadius={40}
+                  outerRadius={64}
                   stroke="hsl(var(--surface))"
-                  strokeWidth={2}
+                  strokeWidth={3}
                 >
                   {pieData.map((d, i) => (
                     <Cell key={i} fill={d.color} />
@@ -144,20 +146,20 @@ export default function Analytics() {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <ul className="flex-1 space-y-2">
+          <ul className="flex-1 space-y-3">
             {byCategory.map((c) => (
-              <li key={c.id} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-sm" style={{ background: c.color }} />
-                  <span className="text-[13px] font-medium text-foreground">{c.label}</span>
+              <li key={c.id} className="flex items-center justify-between p-2 rounded-full hover:bg-slate-100 transition-colors">
+                <div className="flex items-center gap-3">
+                  <span className="h-3 w-3 rounded-full shadow-sm" style={{ background: c.color }} />
+                  <span className="text-[14px] font-bold text-foreground">{c.label}</span>
                 </div>
-                <span className="text-[12px] font-bold tabular-nums text-muted-foreground">
+                <span className="text-[13px] font-bold tabular-nums text-muted-foreground bg-slate-100 px-3 py-1 rounded-full">
                   {c.value}
                 </span>
               </li>
             ))}
             {byCategory.length === 0 && (
-              <li className="text-[12px] text-muted-foreground">No habits yet.</li>
+              <li className="text-[13px] text-muted-foreground font-medium">No habits yet.</li>
             )}
           </ul>
         </div>
@@ -165,30 +167,30 @@ export default function Analytics() {
 
       <section className="px-6 mt-10 mb-4">
         <SectionTitle title="Per habit" hint="Current and best streaks" />
-        <div className="space-y-2">
+        <div className="space-y-3">
           {habits.map((h) => {
             const c = CATEGORY_CLASSES[h.category];
             return (
               <div
                 key={h.id}
                 className={cn(
-                  "bg-surface border-l-4 border-y border-r border-border rounded-md px-4 py-3 flex items-center justify-between",
+                  "bg-gradient-to-r from-slate-50 to-slate-100 border-2 rounded-2xl px-5 py-4 flex items-center justify-between transition-all duration-300 hover:scale-[1.02] hover:shadow-lg",
                   c.border
                 )}
-                style={{ borderLeftColor: c.chart }}
+                style={{ borderColor: c.chart }}
               >
                 <div className="min-w-0">
-                  <div className="text-[14px] font-bold text-foreground truncate">{h.name}</div>
-                  <div className="text-[11px] font-medium text-muted-foreground truncate">{h.hint}</div>
+                  <div className="text-[15px] font-bold text-foreground truncate">{h.name}</div>
+                  <div className="text-[12px] font-medium text-muted-foreground truncate">{h.hint}</div>
                 </div>
                 <div className="flex items-center gap-4 shrink-0 ml-3">
-                  <div className="text-right">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Now</div>
-                    <div className="text-[15px] font-bold text-foreground tabular-nums">{h.streak}</div>
+                  <div className="text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Now</div>
+                    <div className="text-[16px] font-bold text-foreground tabular-nums">{h.streak}</div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Best</div>
-                    <div className="text-[15px] font-bold text-foreground tabular-nums">{h.bestStreak}</div>
+                  <div className="text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Best</div>
+                    <div className="text-[16px] font-bold text-foreground tabular-nums">{h.bestStreak}</div>
                   </div>
                 </div>
               </div>
@@ -197,19 +199,21 @@ export default function Analytics() {
         </div>
       </section>
 
-      <BottomNav />
     </MobileShell>
   );
 }
 
-function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: number | string }) {
+function Stat({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number | string; color?: string }) {
   return (
-    <div className="bg-surface border border-border rounded-md p-4">
-      <div className="flex items-center gap-1.5 text-muted-foreground">
-        {icon}
-        <span className="text-[11px] font-medium uppercase tracking-[0.14em]">{label}</span>
+    <div className="relative bg-gradient-to-br from-white to-slate-50 border-2 rounded-2xl p-4 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg overflow-hidden">
+      <div className="absolute inset-0 opacity-5" style={{ background: color }}></div>
+      <div className="relative">
+        <div className="flex items-center gap-1.5" style={{ color: color || 'hsl(var(--muted-foreground))' }}>
+          {icon}
+          <span className="text-[11px] font-bold uppercase tracking-[0.14em]">{label}</span>
+        </div>
+        <div className="mt-2 text-[26px] font-bold tracking-tight tabular-nums text-foreground">{value}</div>
       </div>
-      <div className="mt-2 text-[26px] font-bold tracking-tight tabular-nums text-foreground">{value}</div>
     </div>
   );
 }

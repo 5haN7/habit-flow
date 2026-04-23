@@ -5,12 +5,10 @@ interface MobileShellProps {
   withNav?: boolean;
 }
 
-export default function MobileShell({ children, withNav = true }: MobileShellProps) {
+export default function MobileShell({ children }: MobileShellProps) {
   return (
-    <div className="min-h-screen w-full bg-background flex justify-center">
-      <main
-        className={`relative w-full max-w-md bg-background ${withNav ? "pb-24" : ""} animate-fade-in`}
-      >
+    <div className="w-full bg-background">
+      <main className="w-full max-w-md mx-auto bg-background min-h-screen pb-28 animate-fade-in">
         {children}
       </main>
     </div>

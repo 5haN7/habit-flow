@@ -1,195 +1,239 @@
-import { useState } from "react";
-import { CATEGORIES, CategoryId, HABIT_LIBRARY, Habit, UserState } from "@/lib/habits";
-import { useApp } from "@/store/useAppStore";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, ArrowRight, Sparkles } from "lucide-react";
-import { cn } from "@/lib/utils";
-import MobileShell from "@/components/MobileShell";
+import { ArrowRight, Check, Plus, X } from "lucide-react";
+import { saveState, UserState, Habit, todayISO } from "@/lib/habits";
+import { useApp } from "@/store/useAppStore";
 
-type Step = "name" | "pick" | "categorize";
+const GROUPS = [
+  { name: "Mind", color: "#4CC9F0" },
+  { name: "Home", color: "#7BD88F" },
+  { name: "Finances", color: "#A78BFA" },
+  { name: "Energy", color: "#F59E0B" },
+];
 
 export default function Onboarding() {
+  const navigate = useNavigate();
   const { setUser } = useApp();
-  const nav = useNavigate();
-  const [step, setStep] = useState<Step>("name");
   const [name, setName] = useState("");
-  const [picked, setPicked] = useState<string[]>([]);
-  const [overrides, setOverrides] = useState<Record<string, CategoryId>>({});
+  const [step, setStep] = useState(1);
+  const [habit, setHabit] = useState("");
+  const [group, setGroup] = useState("Mind");
+  const [items, setItems] = useState<{ name: string; group: string }[]>([]);
+  const [progress, setProgress] = useState(0);
+  const [done, setDone] = useState(false);
+  const [ready, setReady] = useState(false);
 
-  const togglePick = (id: string) =>
-    setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  const wordCount = habit.trim().split(/\s+/).filter(Boolean).length;
+  const validHabit = habit.trim().length > 0 && wordCount <= 4;
+  const canContinue = name.trim().length > 0;
 
-  const finish = () => {
-    const habits: Habit[] = picked.map((id) => {
-      const t = HABIT_LIBRARY.find((h) => h.id === id)!;
-      return {
-        id: t.id,
-        name: t.name,
-        hint: t.hint,
-        category: overrides[id] ?? t.defaultCategory,
-        streak: 0,
-        bestStreak: 0,
-        lastCompleted: null,
-        completedToday: false,
-        history: [],
-      };
-    });
-    const u: UserState = { name: name.trim() || "Friend", onboarded: true, habits };
-    setUser(u);
-    nav("/", { replace: true });
+  useEffect(() => {
+    if (!done) return;
+    setProgress(0);
+    const timer = setInterval(() => {
+      setProgress((p) => {
+        if (p >= 100) {
+          clearInterval(timer);
+          setTimeout(() => setReady(true), 700);
+          return 100;
+        }
+        return p + 2;
+      });
+    }, 45);
+    return () => clearInterval(timer);
+  }, [done]);
+
+  const addHabit = () => {
+    if (!validHabit) return;
+    setItems([...items, { name: habit.trim(), group }]);
+    setHabit("");
   };
 
+  const removeHabit = (idx: number) => setItems(items.filter((_, i) => i !== idx));
+  const startTracking = () => {
+    if (!items.length) return;
+    
+    // Convert selected habits to the proper Habit format
+    const habits: Habit[] = items.map((item, index) => ({
+      id: `habit-${Date.now()}-${index}`,
+      name: item.name,
+      hint: "Track your progress",
+      category: item.group.toLowerCase() as "mind" | "home" | "finances" | "energy",
+      streak: 0,
+      bestStreak: 0,
+      lastCompleted: null,
+      completedToday: false,
+      history: [],
+    }));
+
+    // Create UserState in the format expected by Home component
+    const userState: UserState = {
+      name,
+      onboarded: true,
+      habits,
+    };
+
+    // Save using the proper saveState function and update app state immediately
+    saveState(userState);
+    setUser(userState);
+    setDone(true);
+  };
+
+  if (ready) {
+    return (
+      <div className="min-h-screen bg-[#F7FAFC] p-4 font-['DM_Sans'] text-slate-900">
+        <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6">
+          <div className="space-y-3 text-center">
+            <p className="text-sm tracking-[0.25em] text-slate-500">SETUP COMPLETE</p>
+            <h1 className="text-3xl font-bold">Let’s start this journey</h1>
+            <p className="text-slate-600">Your habits are ready. Tap to begin tracking.</p>
+          </div>
+          <button
+            onClick={() => {
+              localStorage.setItem("habitflow_ready", "1");
+              navigate("/home");
+            }}
+            className="w-full rounded-3xl bg-gradient-to-r from-slate-900 to-slate-800 px-4 py-4 font-bold text-white transition-all duration-300 hover:scale-[1.02] hover:shadow-xl active:scale-[0.98]"
+          >
+            Start journey <ArrowRight className="inline h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (done) {
+    return (
+      <div className="min-h-screen bg-[#F7FAFC] p-4 font-['DM_Sans'] text-slate-900">
+        <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-6 text-center">
+          <div className="space-y-3">
+            <p className="text-sm tracking-[0.25em] text-slate-500">SETUP IN PROGRESS</p>
+            <h1 className="text-3xl font-bold">Getting your habits ready</h1>
+            <p className="text-slate-600">We are building your personal flow.</p>
+          </div>
+          <div className="w-full space-y-3">
+            <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200">
+              <div className="h-full rounded-full bg-slate-900 transition-all duration-300" style={{ width: `${progress}%` }} />
+            </div>
+            <p className="text-5xl font-bold">{progress}%</p>
+          </div>
+          <div className="grid w-full gap-3">
+            {items.map((it, i) => {
+              const c = GROUPS.find((g) => g.name === it.group)?.color ?? "#CBD5E1";
+              return (
+                <div key={i} className="flex items-center justify-between rounded-3xl border bg-white px-5 py-4" style={{ borderColor: c }}>
+                  <div>
+                    <p className="font-bold" style={{ color: c }}>{it.name}</p>
+                    <p className="text-xs text-slate-500">{it.group}</p>
+                  </div>
+                  <div className="h-9 w-9 rounded-full" style={{ background: c, opacity: 0.2 }} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <MobileShell withNav={false}>
-      <div className="px-6 pt-12 pb-8">
-        <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-medium mb-10">
-          <Sparkles className="h-3.5 w-3.5" />
-          Streak · setup
+    <div className="min-h-screen bg-[#F7FAFC] p-4 font-['DM_Sans'] text-slate-900">
+      <div className="mx-auto max-w-md space-y-5">
+        <div>
+          <p className="text-sm text-slate-500">Habit Flow</p>
+          <h1 className="mt-2 text-3xl font-bold leading-tight">
+            {step === 1 ? "Let's begin." : "Add your habits."}
+          </h1>
+          <p className="mt-2 text-sm text-slate-600">
+            {step === 1 ? "Tell us your name." : "Habit names must be 4 words or less."}
+          </p>
         </div>
 
-        {step === "name" && (
-          <section className="animate-fade-in">
-            <h1 className="text-[34px] leading-[1.1] font-bold tracking-tight text-foreground">
-              Let's begin.
-              <br />
-              <span className="italic font-medium text-muted-foreground">What should we call you?</span>
-            </h1>
+        {step === 1 && (
+          <div className="space-y-4">
             <input
-              autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Your first name"
-              className="mt-10 w-full bg-transparent border-0 border-b-2 border-border focus:border-foreground outline-none px-0 py-3 text-2xl font-medium placeholder:text-muted-foreground/60"
+              className="w-full rounded-3xl border-2 border-slate-200 bg-white px-5 py-4 text-xl outline-none placeholder:text-slate-400 transition-all duration-300 focus:border-slate-400 focus:scale-[1.01] focus:shadow-lg"
             />
             <button
-              type="button"
-              onClick={() => name.trim() && setStep("pick")}
-              disabled={!name.trim()}
-              className="mt-12 w-full bg-foreground text-background font-bold py-4 rounded-md flex items-center justify-center gap-2 disabled:opacity-30"
+              disabled={!canContinue}
+              onClick={() => setStep(2)}
+              className="w-full rounded-3xl bg-slate-900 px-4 py-4 font-bold text-white disabled:opacity-40 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
             >
-              Continue <ArrowRight className="h-4 w-4" />
+              Continue <ArrowRight className="inline h-4 w-4" />
             </button>
-          </section>
+          </div>
         )}
 
-        {step === "pick" && (
-          <section className="animate-fade-in">
-            <h1 className="text-[28px] leading-tight font-bold tracking-tight text-foreground">
-              Pick your habits.
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground font-medium">
-              Choose what you want to track every day.
-            </p>
+        {step === 2 && (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <input
+                value={habit}
+                onChange={(e) => setHabit(e.target.value)}
+                placeholder="Habit name"
+                className="w-full rounded-3xl border-2 border-slate-200 bg-white px-5 py-4 outline-none transition-all duration-300 focus:border-slate-400 focus:scale-[1.01] focus:shadow-lg"
+              />
+              <p className="text-xs text-slate-500">Max 4 words.</p>
+            </div>
 
-            <div className="mt-8 grid grid-cols-1 gap-2">
-              {HABIT_LIBRARY.map((h) => {
-                const on = picked.includes(h.id);
+            <div className="grid grid-cols-2 gap-3">
+              {GROUPS.map((g) => {
+                const active = group === g.name;
                 return (
                   <button
-                    key={h.id}
-                    onClick={() => togglePick(h.id)}
-                    className={cn(
-                      "flex items-center justify-between rounded-md border-2 px-4 py-3.5 text-left transition-colors",
-                      on
-                        ? "bg-foreground text-background border-foreground"
-                        : "bg-surface border-border text-foreground"
-                    )}
+                    key={g.name}
+                    onClick={() => setGroup(g.name)}
+                    className="rounded-3xl border-2 px-3 py-3 font-bold transition-all duration-300 hover:scale-[1.05] hover:shadow-md active:scale-[0.95]"
+                    style={{
+                      borderColor: g.color,
+                      background: active ? g.color : "#fff",
+                      color: active ? "#fff" : g.color,
+                    }}
                   >
-                    <div className="min-w-0">
-                      <div className="text-[15px] font-bold truncate">{h.name}</div>
-                      <div className={cn("text-[12px] font-medium truncate", on ? "opacity-70" : "text-muted-foreground")}>
-                        {h.hint}
-                      </div>
-                    </div>
-                    <div
-                      className={cn(
-                        "h-5 w-5 rounded-sm border-2 flex items-center justify-center shrink-0 ml-3",
-                        on ? "bg-background border-background text-foreground" : "border-border"
-                      )}
-                    >
-                      {on && <Check className="h-3.5 w-3.5" />}
-                    </div>
+                    {g.name}
                   </button>
                 );
               })}
             </div>
 
-            <div className="sticky bottom-0 -mx-6 mt-8 px-6 pt-4 pb-6 bg-gradient-to-t from-background via-background to-transparent">
-              <button
-                disabled={picked.length === 0}
-                onClick={() => setStep("categorize")}
-                className="w-full bg-foreground text-background font-bold py-4 rounded-md disabled:opacity-30 flex items-center justify-center gap-2"
-              >
-                {picked.length === 0 ? "Pick at least one" : `Continue with ${picked.length}`} <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-          </section>
-        )}
+            <button
+              disabled={!validHabit}
+              onClick={addHabit}
+              className="flex w-full items-center justify-center gap-2 rounded-3xl border-2 border-slate-200 bg-white px-4 py-4 font-bold disabled:opacity-40 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
+            >
+              <Plus className="h-4 w-4" /> Add habit
+            </button>
 
-        {step === "categorize" && (
-          <section className="animate-fade-in">
-            <h1 className="text-[28px] leading-tight font-bold tracking-tight text-foreground">
-              Sort them.
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground font-medium">
-              Each habit lives under one category.
-            </p>
-
-            <div className="mt-8 space-y-3">
-              {picked.map((id) => {
-                const t = HABIT_LIBRARY.find((h) => h.id === id)!;
-                const current = overrides[id] ?? t.defaultCategory;
+            <div className="space-y-3">
+              {items.map((it, idx) => {
+                const c = GROUPS.find((g) => g.name === it.group)?.color ?? "#CBD5E1";
                 return (
-                  <div key={id} className="bg-surface border border-border rounded-md p-3.5">
-                    <div className="text-[15px] font-bold text-foreground">{t.name}</div>
-                    <div className="text-[12px] font-medium text-muted-foreground mb-3">{t.hint}</div>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {CATEGORIES.map((cat) => {
-                        const active = current === cat.id;
-                        return (
-                          <button
-                            key={cat.id}
-                            onClick={() => setOverrides((o) => ({ ...o, [id]: cat.id }))}
-                            className={cn(
-                              "py-2 rounded-sm border-2 text-[11px] font-bold transition-colors",
-                              active
-                                ? cat.id === "mind"
-                                  ? "bg-mind border-mind text-mind-foreground"
-                                  : cat.id === "home"
-                                  ? "bg-home border-home text-home-foreground"
-                                  : cat.id === "finances"
-                                  ? "bg-finances border-finances text-finances-foreground"
-                                  : "bg-energy border-energy text-energy-foreground"
-                                : cat.id === "mind"
-                                ? "border-mind text-mind"
-                                : cat.id === "home"
-                                ? "border-home text-home"
-                                : cat.id === "finances"
-                                ? "border-finances text-finances"
-                                : "border-energy text-energy"
-                            )}
-                          >
-                            {cat.label}
-                          </button>
-                        );
-                      })}
+                  <div key={`${it.name}-${idx}`} className="flex items-center justify-between rounded-3xl border bg-white px-5 py-4" style={{ borderColor: c }}>
+                    <div>
+                      <p className="font-bold" style={{ color: c }}>{it.name}</p>
+                      <p className="text-xs text-slate-500">{it.group}</p>
                     </div>
+                    <button onClick={() => removeHabit(idx)} className="text-slate-400">
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
                 );
               })}
             </div>
 
-            <div className="sticky bottom-0 -mx-6 mt-8 px-6 pt-4 pb-6 bg-gradient-to-t from-background via-background to-transparent">
-              <button
-                onClick={finish}
-                className="w-full bg-foreground text-background font-bold py-4 rounded-md flex items-center justify-center gap-2"
-              >
-                Start tracking <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-          </section>
+            <button
+              disabled={items.length === 0}
+              onClick={startTracking}
+              className="w-full rounded-3xl bg-slate-900 px-4 py-4 font-bold text-white disabled:opacity-40 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
+            >
+              Start tracking <Check className="inline h-4 w-4" />
+            </button>
+          </div>
         )}
       </div>
-    </MobileShell>
+    </div>
   );
 }

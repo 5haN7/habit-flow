@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import MobileShell from "@/components/MobileShell";
-import BottomNav from "@/components/BottomNav";
 import { useApp } from "@/store/useAppStore";
 import { Plus, Check, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -55,12 +54,12 @@ export default function Todo() {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Add a task…"
-            className="flex-1 bg-surface border-2 border-todo/40 focus:border-todo text-foreground placeholder:text-muted-foreground rounded-md px-4 py-3.5 text-[15px] font-medium outline-none transition-colors"
+            className="flex-1 bg-surface border-2 border-todo/40 focus:border-todo text-foreground placeholder:text-muted-foreground rounded-full px-5 py-4 text-[15px] font-medium outline-none transition-all duration-300 focus:scale-[1.02]"
           />
           <button
             type="submit"
             disabled={!text.trim()}
-            className="shrink-0 bg-todo text-todo-foreground rounded-md px-4 font-bold disabled:opacity-30"
+            className="shrink-0 bg-todo text-todo-foreground rounded-full p-4 font-bold disabled:opacity-30 transition-all duration-300 hover:scale-110 active:scale-95"
             aria-label="Add task"
           >
             <Plus className="h-5 w-5" />
@@ -70,7 +69,7 @@ export default function Todo() {
 
       <section className="px-6 mt-8 space-y-2.5">
         {todayList.length === 0 && (
-          <div className="border-2 border-dashed border-border rounded-md py-12 text-center text-[13px] font-medium text-muted-foreground">
+          <div className="border-2 border-dashed border-border rounded-full py-12 text-center text-[13px] font-medium text-muted-foreground bg-surface/50">
             Nothing yet. Write your first task above.
           </div>
         )}
@@ -98,7 +97,6 @@ export default function Todo() {
         </section>
       )}
 
-      <BottomNav />
     </MobileShell>
   );
 }
@@ -117,16 +115,16 @@ function TodoBox({
   return (
     <div
       className={cn(
-        "group relative rounded-md border-2 px-4 py-3.5 flex items-center gap-3 transition-colors duration-300",
-        done ? "bg-todo border-todo text-todo-foreground" : "bg-surface border-todo text-todo"
+        "group relative rounded-full border-2 px-5 py-4 flex items-center gap-3 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]",
+        done ? "bg-todo border-todo text-todo-foreground shadow-lg" : "bg-surface border-todo text-todo hover:shadow-md"
       )}
     >
       <button
         onClick={onToggle}
         aria-label={done ? "Mark incomplete" : "Mark complete"}
         className={cn(
-          "shrink-0 h-6 w-6 rounded-sm border-2 flex items-center justify-center transition-colors",
-          done ? "bg-todo-foreground border-todo-foreground text-todo" : "border-todo"
+          "shrink-0 h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all duration-300",
+          done ? "bg-todo-foreground border-todo-foreground text-todo" : "border-todo hover:border-todo/60"
         )}
       >
         {done && <Check className="h-4 w-4" strokeWidth={3} />}

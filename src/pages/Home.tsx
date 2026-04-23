@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { useApp } from "@/store/useAppStore";
 import { Navigate } from "react-router-dom";
 import MobileShell from "@/components/MobileShell";
-import BottomNav from "@/components/BottomNav";
 import HabitCard from "@/components/HabitCard";
 import CategoryHeader from "@/components/CategoryHeader";
 import { CATEGORIES } from "@/lib/habits";
@@ -64,19 +63,27 @@ export default function Home() {
 
         {/* daily progress bar */}
         <div className="mt-7">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
               Today
             </span>
-            <span className="text-[12px] font-bold tabular-nums text-foreground">
+            <span className="text-[12px] font-bold tabular-nums text-foreground bg-slate-100 px-3 py-1 rounded-full">
               {totalDone}/{total} · {pct}%
             </span>
           </div>
-          <div className="h-1.5 w-full bg-muted overflow-hidden rounded-sm">
-            <div
-              className="h-full bg-foreground transition-[width] duration-500"
-              style={{ width: `${pct}%` }}
-            />
+          <div className="relative">
+            <div className="h-3 w-full bg-gradient-to-r from-slate-100 to-slate-200 overflow-hidden rounded-full shadow-inner">
+              <div
+                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-700 ease-out shadow-lg"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            {pct > 0 && pct < 100 && (
+              <div 
+                className="absolute top-1/2 -translate-y-1/2 h-5 w-5 bg-white rounded-full shadow-md border-2 border-purple-500 transition-all duration-700"
+                style={{ left: `calc(${pct}% - 10px)` }}
+              />
+            )}
           </div>
         </div>
       </header>
@@ -99,7 +106,6 @@ export default function Home() {
         ))}
       </div>
 
-      <BottomNav />
-    </MobileShell>
+      </MobileShell>
   );
 }

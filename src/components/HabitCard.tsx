@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Habit, CATEGORY_CLASSES } from "@/lib/habits";
 import { ArrowRight, Check, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -8,19 +8,31 @@ interface HabitCardProps {
   onComplete: () => void;
 }
 
-const HANDLE = 56; // px — circular handle diameter
-const PAD = 4; // px — inner padding around track
+const HANDLE = 56;
+const PAD = 4;
+const THRESHOLD = 0.75; // Must drag 75% to complete
 
 export default function HabitCard({ habit, onComplete }: HabitCardProps) {
   const c = CATEGORY_CLASSES[habit.category];
   const trackRef = useRef<HTMLDivElement>(null);
-  const startX = useRef<number | null>(null);
-  const [trackW, setTrackW] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Use refs for immediate updates during drag (no React render lag)
+  const dragXRef = useRef(0);
+  const isDraggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const rafRef = useRef<number | null>(null);
+  
+  // State for React (visual updates)
   const [dragX, setDragX] = useState(0);
-  const [dragging, setDragging] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [trackW, setTrackW] = useState(0);
+  
   const completed = habit.completedToday;
+  const maxX = Math.max(0, trackW - HANDLE - PAD * 2);
+  const progress = maxX === 0 ? 0 : dragX / maxX;
 
-  // measure track
+  // Measure track width
   useEffect(() => {
     if (!trackRef.current) return;
     const el = trackRef.current;
@@ -31,57 +43,155 @@ export default function HabitCard({ habit, onComplete }: HabitCardProps) {
     return () => ro.disconnect();
   }, []);
 
-  const maxX = Math.max(0, trackW - HANDLE - PAD * 2);
+  // Safety: reset if stuck (timeout mechanism)
+  useEffect(() => {
+    if (!isDragging) return;
+    const timeout = setTimeout(() => {
+      if (isDraggingRef.current) {
+        // Force reset if drag lasted too long (stuck detection)
+        isDraggingRef.current = false;
+        dragXRef.current = 0;
+        setIsDragging(false);
+        setDragX(0);
+      }
+    }, 10000); // 10 second safety timeout
+    return () => clearTimeout(timeout);
+  }, [isDragging]);
 
-  const handlePointerDown = (e: React.PointerEvent) => {
+  // Update visual position using RAF for smoothness
+  const updatePosition = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      setDragX(dragXRef.current);
+    });
+  }, []);
+
+  // Handle start (supports both mouse and touch)
+  const handleStart = useCallback((clientX: number) => {
     if (completed) return;
-    startX.current = e.clientX - dragX;
-    setDragging(true);
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  };
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (startX.current == null || completed) return;
-    const next = Math.min(maxX, Math.max(0, e.clientX - startX.current));
-    setDragX(next);
-  };
-  const handlePointerUp = () => {
-    if (completed) return;
-    setDragging(false);
-    if (dragX >= maxX - 4 && maxX > 0) {
-      // snap to end then trigger
+    isDraggingRef.current = true;
+    startXRef.current = clientX - dragXRef.current;
+    setIsDragging(true);
+  }, [completed]);
+
+  // Handle move
+  const handleMove = useCallback((clientX: number) => {
+    if (!isDraggingRef.current || completed) return;
+    const raw = clientX - startXRef.current;
+    const clamped = Math.min(maxX, Math.max(0, raw));
+    dragXRef.current = clamped;
+    updatePosition();
+  }, [maxX, completed, updatePosition]);
+
+  // Handle end
+  const handleEnd = useCallback(() => {
+    if (!isDraggingRef.current || completed) return;
+    
+    isDraggingRef.current = false;
+    setIsDragging(false);
+    
+    const progress = maxX === 0 ? 0 : dragXRef.current / maxX;
+    
+    if (progress >= THRESHOLD && maxX > 0) {
+      // Success - snap to end then complete
+      dragXRef.current = maxX;
       setDragX(maxX);
       onComplete();
-      // reset for next day cycle (will be hidden by completed state)
-      setTimeout(() => setDragX(0), 280);
+      // Reset after completion (for next day)
+      setTimeout(() => {
+        dragXRef.current = 0;
+        setDragX(0);
+      }, 300);
     } else {
+      // Failed - spring back
+      dragXRef.current = 0;
       setDragX(0);
     }
-    startX.current = null;
+  }, [maxX, completed, onComplete]);
+
+  // Pointer events
+  const onPointerDown = (e: React.PointerEvent) => {
+    handleStart(e.clientX);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      // setPointerCapture might fail on some browsers, ignore
+    }
+  };
+  
+  const onPointerMove = (e: React.PointerEvent) => {
+    handleMove(e.clientX);
+  };
+  
+  const onPointerUp = (e: React.PointerEvent) => {
+    handleEnd();
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      // releasePointerCapture might fail, ignore
+    }
   };
 
-  const progress = maxX === 0 ? 0 : dragX / maxX;
+  // Touch events (fallback for mobile)
+  const onTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    handleStart(touch.clientX);
+  };
+  
+  const onTouchMove = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    handleMove(touch.clientX);
+  };
+  
+  const onTouchEnd = () => {
+    handleEnd();
+  };
+
+  // Click to complete (accessibility fallback)
+  const onClick = () => {
+    if (completed) {
+      onComplete(); // Toggle off
+    } else if (!isDraggingRef.current && dragXRef.current === 0) {
+      // If user taps without dragging, complete immediately
+      onComplete();
+    }
+  };
+
+  // Cleanup RAF on unmount
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
 
   return (
-    <div className="relative select-none">
+    <div 
+      ref={containerRef}
+      className="relative select-none"
+      style={{ touchAction: "pan-y" }} // Allow vertical scroll, handle horizontal
+    >
       {/* Pill track */}
       <div
         ref={trackRef}
         className={cn(
-          "relative w-full overflow-hidden rounded-full border-2 transition-colors duration-300",
+          "relative w-full overflow-hidden rounded-full border-2 transition-all duration-300",
           "h-[64px]",
-          completed ? cn(c.fill, c.border) : cn("bg-surface", c.border)
+          completed ? cn(c.fill, c.border) : cn("bg-surface", c.border),
+          isDragging && "scale-[1.02]"
         )}
         style={{ padding: PAD }}
       >
-        {/* Filled progress trail (incomplete state) */}
+        {/* Progress fill background */}
         {!completed && (
           <div
-            className={cn("absolute inset-0 rounded-full transition-opacity", c.softBg)}
-            style={{
-              clipPath: `inset(0 ${(1 - progress) * 100}% 0 0 round 9999px)`,
-              opacity: 1,
+            className={cn(
+              "absolute inset-y-0 left-0 rounded-full transition-all duration-150",
+              c.softBg
+            )}
+            style={{ 
+              width: `${progress * 100}%`,
+              margin: PAD,
             }}
-            aria-hidden
           />
         )}
 
@@ -96,64 +206,84 @@ export default function HabitCard({ habit, onComplete }: HabitCardProps) {
             <div className="min-w-0 text-center">
               <div
                 className={cn(
-                  "text-[14px] font-bold tracking-tight truncate transition-opacity",
+                  "text-[14px] font-bold tracking-tight truncate transition-all duration-150",
                   c.text
                 )}
-                style={{ opacity: 1 - progress * 0.6 }}
+                style={{ 
+                  opacity: 1 - progress * 0.6,
+                  transform: `translateX(${progress * 20}px)`
+                }}
               >
                 {habit.name}
               </div>
               <div
-                className="text-[11px] font-medium text-muted-foreground truncate transition-opacity"
-                style={{ opacity: 1 - progress }}
+                className="text-[11px] font-medium text-muted-foreground truncate transition-all duration-150"
+                style={{ 
+                  opacity: 1 - progress,
+                  transform: `translateX(${progress * 10}px)`
+                }}
               >
-                Slide to complete
+                {progress > 0.5 ? "Release to complete" : "Slide to complete"}
               </div>
             </div>
           )}
         </div>
 
-        {/* Streak chip on the right (incomplete only) */}
+        {/* Streak indicator */}
         {!completed && (
           <div
             className={cn(
-              "absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[11px] font-bold transition-opacity",
+              "absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[11px] font-bold transition-all duration-150",
               c.text
             )}
-            style={{ opacity: 1 - progress }}
+            style={{ 
+              opacity: 1 - progress,
+              transform: `translateX(${progress * 30}px)`
+            }}
           >
             <Flame className="h-3.5 w-3.5" />
             <span className="tabular-nums">{habit.streak}</span>
           </div>
         )}
 
-        {/* Draggable handle */}
+        {/* Draggable handle with both pointer and touch support */}
         <button
           type="button"
           aria-label={completed ? `Tap to undo ${habit.name}` : `Slide to complete ${habit.name}`}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          onClick={() => completed && onComplete()}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          onClick={onClick}
           className={cn(
-            "absolute top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center touch-none",
-            "shadow-[0_1px_2px_rgba(0,0,0,0.06)]",
-            dragging ? "transition-none" : "transition-[transform,background-color,left] duration-300",
+            "absolute top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center",
+            "shadow-lg cursor-grab active:cursor-grabbing",
+            isDragging ? "transition-none cursor-grabbing shadow-xl scale-110" : "transition-all duration-200",
             completed
               ? "bg-white/20 text-current"
-              : cn("bg-surface", c.text)
+              : cn("bg-surface", c.text, "hover:shadow-xl")
           )}
           style={{
             width: HANDLE,
             height: HANDLE,
             left: completed ? `calc(100% - ${HANDLE + PAD}px)` : PAD + dragX,
+            touchAction: "none",
           }}
         >
           {completed ? (
             <Check className="h-5 w-5" strokeWidth={3} />
           ) : (
-            <ArrowRight className="h-5 w-5" strokeWidth={2.25} />
+            <ArrowRight 
+              className={cn(
+                "h-5 w-5 transition-transform duration-150",
+                progress > 0.3 && "rotate-0",
+                progress > 0.7 && "scale-110"
+              )} 
+              strokeWidth={2.25} 
+            />
           )}
         </button>
       </div>
