@@ -10,7 +10,6 @@ import { Settings2 } from "lucide-react";
 
 export default function Home() {
   const { user, toggleHabit, resetUser } = useApp();
-  if (!user?.onboarded) return <Navigate to="/welcome" replace />;
 
   const today = useMemo(
     () =>
@@ -23,11 +22,14 @@ export default function Home() {
   );
 
   const grouped = useMemo(() => {
+    if (!user) return [];
     return CATEGORIES.map((cat) => ({
       ...cat,
       items: user.habits.filter((h) => h.category === cat.id),
     })).filter((g) => g.items.length > 0);
-  }, [user.habits]);
+  }, [user]);
+
+  if (!user?.onboarded) return <Navigate to="/welcome" replace />;
 
   const totalDone = user.habits.filter((h) => h.completedToday).length;
   const total = user.habits.length;

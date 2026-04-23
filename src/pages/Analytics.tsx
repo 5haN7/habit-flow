@@ -20,15 +20,7 @@ import { cn } from "@/lib/utils";
 
 export default function Analytics() {
   const { user } = useApp();
-  if (!user?.onboarded) return <Navigate to="/welcome" replace />;
-
-  const habits = user.habits;
-  const totalCompletions = habits.reduce((s, h) => s + (h.history?.length ?? 0), 0);
-  const bestStreak = habits.reduce((m, h) => Math.max(m, h.bestStreak), 0);
-  const currentStreaksSum = habits.reduce((s, h) => s + h.streak, 0);
-  const today = todayISO();
-  const doneToday = habits.filter((h) => h.lastCompleted === today).length;
-  const completionRate = habits.length === 0 ? 0 : Math.round((doneToday / habits.length) * 100);
+  const habits = user?.habits ?? [];
 
   const last7 = useMemo(() => {
     const days: { date: string; label: string; count: number }[] = [];
@@ -56,6 +48,15 @@ export default function Analytics() {
       };
     }).filter((c) => c.items > 0);
   }, [habits]);
+
+  if (!user?.onboarded) return <Navigate to="/welcome" replace />;
+
+  const totalCompletions = habits.reduce((s, h) => s + (h.history?.length ?? 0), 0);
+  const bestStreak = habits.reduce((m, h) => Math.max(m, h.bestStreak), 0);
+  const currentStreaksSum = habits.reduce((s, h) => s + h.streak, 0);
+  const today = todayISO();
+  const doneToday = habits.filter((h) => h.lastCompleted === today).length;
+  const completionRate = habits.length === 0 ? 0 : Math.round((doneToday / habits.length) * 100);
 
   const pieData = byCategory.length > 0 && byCategory.some((c) => c.value > 0)
     ? byCategory
