@@ -168,7 +168,11 @@ export default function HabitCard({ habit, onComplete }: HabitCardProps) {
   return (
     <div 
       ref={containerRef}
-      className="relative select-none"
+      onClick={completed ? onClick : undefined}
+      className={cn(
+        "relative select-none",
+        completed && "cursor-pointer active:scale-[0.98] transition-transform duration-150"
+      )}
       style={{ touchAction: "pan-y" }} // Allow vertical scroll, handle horizontal
     >
       {/* Pill track */}
@@ -177,10 +181,15 @@ export default function HabitCard({ habit, onComplete }: HabitCardProps) {
         className={cn(
           "relative w-full overflow-hidden rounded-full border-2 transition-all duration-300",
           "h-[64px]",
-          completed ? cn(c.fill, c.border) : cn("bg-surface", c.border),
+          completed 
+            ? "bg-gradient-to-r from-slate-900 to-slate-800 border-slate-700 shadow-lg" 
+            : cn("bg-surface", c.border),
           isDragging && "scale-[1.02]"
         )}
-        style={{ padding: PAD }}
+        style={{ 
+          padding: PAD,
+          background: completed ? `linear-gradient(135deg, ${c.chart} 0%, ${c.fill} 100%)` : undefined 
+        }}
       >
         {/* Progress fill background */}
         {!completed && (
@@ -200,33 +209,36 @@ export default function HabitCard({ habit, onComplete }: HabitCardProps) {
         <div
           className={cn(
             "absolute inset-0 pointer-events-none",
-            completed ? "flex items-center justify-between gap-3 pl-4 pr-[72px]" : "flex items-center justify-center px-20",
+            completed ? "flex items-center justify-between px-5" : "flex items-center justify-center px-20",
           )}
         >
           {completed ? (
             <>
-              <div className="min-w-0 flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20">
-                  <Check className="h-4 w-4" strokeWidth={3} />
+              {/* Left: Habit info */}
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[17px] font-bold tracking-tight text-white">
+                  {habit.name}
                 </div>
-                <div className="min-w-0">
-                  <div className="truncate text-[15px] font-bold tracking-tight text-current">
-                    {habit.name}
-                  </div>
-                  <div className="truncate text-[11px] font-medium text-current/80">
-                    {category?.label} · Completed today
-                  </div>
+                <div className="truncate text-[12px] font-medium text-white/70">
+                  {category?.label} · Done today
                 </div>
               </div>
 
-              <div className="shrink-0 rounded-full border border-white/20 bg-white/15 px-3 py-2 text-current shadow-sm">
-                <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-current/70">
-                  Streak
+              {/* Right: Gen Z Premium Streak */}
+              <div className="shrink-0 flex flex-col items-end text-white">
+                <div className="flex items-baseline gap-1">
+                  <Flame 
+                    className="h-5 w-5 text-orange-300 drop-shadow-[0_0_8px_rgba(253,186,116,0.6)]" 
+                    strokeWidth={2.5} 
+                    fill="currentColor"
+                  />
+                  <span className="text-[22px] font-bold tabular-nums leading-none">
+                    {habit.streak}
+                  </span>
                 </div>
-                <div className="mt-0.5 flex items-center gap-1 text-[13px] font-bold tabular-nums">
-                  <Flame className="h-3.5 w-3.5" />
-                  <span>{habit.streak}d</span>
-                </div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/60 mt-0.5">
+                  {habit.streak === 1 ? "day streak" : "days"}
+                </span>
               </div>
             </>
           ) : (
@@ -273,36 +285,32 @@ export default function HabitCard({ habit, onComplete }: HabitCardProps) {
           </div>
         )}
 
-        {/* Draggable handle with both pointer and touch support */}
-        <button
-          type="button"
-          aria-label={completed ? `Tap to undo ${habit.name}` : `Slide to complete ${habit.name}`}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
-          onClick={onClick}
-          className={cn(
-            "absolute top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center",
-            "shadow-lg cursor-grab active:cursor-grabbing",
-            isDragging ? "transition-none cursor-grabbing shadow-xl scale-110" : "transition-all duration-200",
-            completed
-              ? "bg-white/20 text-current"
-              : cn("bg-surface", c.text, "hover:shadow-xl")
-          )}
-          style={{
-            width: HANDLE,
-            height: HANDLE,
-            left: completed ? `calc(100% - ${HANDLE + PAD}px)` : PAD + dragX,
-            touchAction: "none",
-          }}
-        >
-          {completed ? (
-            <Check className="h-5 w-5" strokeWidth={3} />
-          ) : (
+        {/* Draggable handle - hidden when completed, shown when not */}
+        {!completed && (
+          <button
+            type="button"
+            aria-label={`Slide to complete ${habit.name}`}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+            onClick={onClick}
+            className={cn(
+              "absolute top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center",
+              "shadow-lg cursor-grab active:cursor-grabbing",
+              isDragging ? "transition-none cursor-grabbing shadow-xl scale-110" : "transition-all duration-200",
+              cn("bg-surface", c.text, "hover:shadow-xl")
+            )}
+            style={{
+              width: HANDLE,
+              height: HANDLE,
+              left: PAD + dragX,
+              touchAction: "none",
+            }}
+          >
             <ArrowRight 
               className={cn(
                 "h-5 w-5 transition-transform duration-150",
@@ -311,8 +319,8 @@ export default function HabitCard({ habit, onComplete }: HabitCardProps) {
               )} 
               strokeWidth={2.25} 
             />
-          )}
-        </button>
+          </button>
+        )}
       </div>
     </div>
   );
