@@ -182,14 +182,11 @@ export default function HabitCard({ habit, onComplete }: HabitCardProps) {
           "relative w-full overflow-hidden rounded-full border-2 transition-all duration-300",
           "h-[64px]",
           completed 
-            ? "bg-gradient-to-r from-slate-900 to-slate-800 border-slate-700 shadow-lg" 
+            ? cn(c.fill, c.border, "shadow-lg") 
             : cn("bg-surface", c.border),
           isDragging && "scale-[1.02]"
         )}
-        style={{ 
-          padding: PAD,
-          background: completed ? `linear-gradient(135deg, ${c.chart} 0%, ${c.fill} 100%)` : undefined 
-        }}
+        style={{ padding: PAD }}
       >
         {/* Progress fill background */}
         {!completed && (
@@ -214,21 +211,21 @@ export default function HabitCard({ habit, onComplete }: HabitCardProps) {
         >
           {completed ? (
             <>
-              {/* Left: Habit info */}
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[17px] font-bold tracking-tight text-white">
+              {/* Left: Habit info - inherits text color from parent c.fill */}
+              <div className="min-w-0 flex-1 text-current">
+                <div className="truncate text-[17px] font-bold tracking-tight">
                   {habit.name}
                 </div>
-                <div className="truncate text-[12px] font-medium text-white/70">
+                <div className="truncate text-[12px] font-medium opacity-80">
                   {category?.label} · Done today
                 </div>
               </div>
 
               {/* Right: Gen Z Premium Streak */}
-              <div className="shrink-0 flex flex-col items-end text-white">
+              <div className="shrink-0 flex flex-col items-end text-current">
                 <div className="flex items-baseline gap-1">
                   <Flame 
-                    className="h-5 w-5 text-orange-300 drop-shadow-[0_0_8px_rgba(253,186,116,0.6)]" 
+                    className="h-5 w-5 opacity-90 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" 
                     strokeWidth={2.5} 
                     fill="currentColor"
                   />
@@ -236,7 +233,7 @@ export default function HabitCard({ habit, onComplete }: HabitCardProps) {
                     {habit.streak}
                   </span>
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/60 mt-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-[0.12em] opacity-70 mt-0.5">
                   {habit.streak === 1 ? "day streak" : "days"}
                 </span>
               </div>
